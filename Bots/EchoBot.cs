@@ -13,7 +13,16 @@ namespace Microsoft.BotBuilderSamples.Bots
     {
         protected override async Task OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
-            var replyText = $"Echo: {turnContext.Activity.Text}";
+            var userText = turnContext.Activity.Text;
+            if (userText=="agent")
+            {
+                await turnContext.SendActivityAsync("Your request will be escalated to a human agent");
+                var evnt = EventFactory.CreateHandoffInitiation(turnContext, new { Skill = "Any" } );
+                await turnContext.SendActivityAsync(evnt);
+                return;
+            }
+
+            var replyText = $"Echo: {userText}";
             await turnContext.SendActivityAsync(MessageFactory.Text(replyText, replyText), cancellationToken);
         }
 
