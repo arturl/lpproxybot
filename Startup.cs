@@ -31,13 +31,20 @@ namespace Microsoft.BotBuilderSamples
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
 
-            services.AddSingleton<IStorage, MemoryStorage>();
+            var storage = new MemoryStorage();
+            // Create the User state passing in the storage layer.
+            var userState = new UserState(storage);
+            services.AddSingleton(userState);
+
+            // Create the Conversation state passing in the storage layer.
+            var conversationState = new ConversationState(storage);
+            services.AddSingleton(conversationState);
 
             // Create the Bot Framework Adapter.
             services.AddSingleton<IBotFrameworkHttpAdapter, AdapterWithErrorHandler>();
 
             // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.
-            services.AddTransient<IBot, EchoBot>();
+            services.AddTransient<IBot, Bots.LPProxyBot>();
 
             services.AddSingleton<HandoffMiddleware>();
 
