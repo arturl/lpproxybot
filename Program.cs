@@ -4,7 +4,7 @@
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 
-namespace Microsoft.BotBuilderSamples
+namespace LPProxyBot
 {
     public class Program
     {

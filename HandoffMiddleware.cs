@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
 using System.Linq;
-using Microsoft.BotBuilderSamples.Bots;
+using LPProxyBot.Bots;
 
 namespace LPProxyBot
 {

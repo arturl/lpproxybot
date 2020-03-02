@@ -9,7 +9,7 @@ using Microsoft.Bot.Builder;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Schema;
 
-namespace Microsoft.BotBuilderSamples.Bots
+namespace LPProxyBot.Bots
 {
     public class LPProxyBot : ActivityHandler
     {

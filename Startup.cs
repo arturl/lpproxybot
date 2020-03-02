@@ -9,11 +9,11 @@ using Microsoft.Bot.Builder.Integration.AspNet.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
-using Microsoft.BotBuilderSamples.Bots;
+using LPProxyBot.Bots;
 using Microsoft.Bot.Builder.EchoBot;
 using LPProxyBot;
 
-namespace Microsoft.BotBuilderSamples
+namespace LPProxyBot
 {
     public class Startup
     {
