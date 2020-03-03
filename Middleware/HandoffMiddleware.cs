@@ -107,22 +107,51 @@ namespace LPProxyBot
             };
 
             var conversationId = await StartConversation(account, msgDomain, appJWT, consumerJWS, conversations);
+            var messageId = 1;
 
-            Message message = new Message {
-                kind = "req",
-                id = "1",
-                type = "ms.PublishEvent",
-                body = new MessageBody {
-                    dialogId = conversationId,
-                    @event = new MessageBodyEvent {
-                        type = "ContentEvent",
-                        contentType = "text/plain",
-                        message = "From user: " + turnContext.Activity.Text
+            // First, play out the transcript
+            var handoffActivity = handoffEvent as Activity;
+            if (handoffActivity.Attachments != null)
+            {
+                foreach(var attachment in handoffActivity.Attachments)
+                {
+                    if(attachment.Name == "Transcript")
+                    {
+                        var transcript = attachment.Content as Transcript;
+                        foreach(var activity in transcript.Activities)
+                        {
+                            var message2 = MakeLivePersonMessage(messageId++, 
+                                activity.Recipient == turnContext.Activity.Recipient ? 
+                                    $"From user: {activity.Text}" :
+                                    $"From bot: {activity.Text}");
+                            await SendMessageToConversation(account, msgDomain, appJWT, consumerJWS, conversationId, message2);
+                        }
                     }
                 }
-            };
+            }
 
+            var message = MakeLivePersonMessage(messageId++, turnContext.Activity.Text);
             await SendMessageToConversation(account, msgDomain, appJWT, consumerJWS, conversationId, message);
+
+            Message MakeLivePersonMessage(int id, string text)
+            {
+                return new Message
+                {
+                    kind = "req",
+                    id = id.ToString(),
+                    type = "ms.PublishEvent",
+                    body = new MessageBody
+                    {
+                        dialogId = conversationId,
+                        @event = new MessageBodyEvent
+                        {
+                            type = "ContentEvent",
+                            contentType = "text/plain",
+                            message = text
+                        }
+                    }
+                };
+            }
         }
 
         private async Task<string> GetDomain(string account, string serviceName)

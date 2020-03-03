@@ -33,10 +33,19 @@ namespace LPProxyBot.Bots
             }
 
             var userText = turnContext.Activity.Text;
-            if (userText=="agent")
+            if (userText == "agent")
             {
                 await turnContext.SendActivityAsync("Your request will be escalated to a human agent");
-                var evnt = EventFactory.CreateHandoffInitiation(turnContext, new { Skill = "Any" } );
+
+                // Hack: normally the transcript would be collected by the bot (for example, by bot middleware)
+                var messages = new Activity[] {
+                    new Activity { Type = ActivityTypes.Message, Text = "Hello bot!", From = turnContext.Activity.From, Recipient = turnContext.Activity.Recipient },
+                    new Activity { Type = ActivityTypes.Message, Text = "Hello user!", From = turnContext.Activity.Recipient, Recipient = turnContext.Activity.From },
+                    new Activity { Type = ActivityTypes.Message, Text = "Can you help me with my refrigerator?", From = turnContext.Activity.From, Recipient = turnContext.Activity.Recipient },
+                    new Activity { Type = ActivityTypes.Message, Text = "Sorry, I can only help with dishwashers", From = turnContext.Activity.Recipient, Recipient = turnContext.Activity.From },
+                };
+
+                var evnt = EventFactory.CreateHandoffInitiation(turnContext, new { Skill = "Any" }, new Transcript(messages) );
                 await turnContext.SendActivityAsync(evnt);
                 return;
             }
