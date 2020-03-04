@@ -5,6 +5,6 @@ namespace LPProxyBot.Bots
 {
     internal class ConversationData
     {
-        public bool IsEscalated { get; set; } = false;
+        public LivePersonConversationRecord EscalationRecord { get; set; } = null;
     }
 }

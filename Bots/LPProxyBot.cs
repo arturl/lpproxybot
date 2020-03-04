@@ -2,6 +2,7 @@
 // Licensed under the MIT License.
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -24,7 +25,7 @@ namespace LPProxyBot.Bots
         {
             var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
             var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new ConversationData());
-            if (conversationData.IsEscalated)
+            if (conversationData.EscalationRecord != null)
             {
                 // In the current implementation, a conversation is considered escalated as soon as the user
                 // asks for an escalation. Other strategy would make it escalated after an agent has responded

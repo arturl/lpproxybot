@@ -8,12 +8,22 @@ using LPProxyBot.Bots;
 using System.Net.Http;
 using Newtonsoft.Json;
 using System.Text;
+using System.Diagnostics;
+using System.Collections.Concurrent;
 
 namespace LPProxyBot
 {
+    class LivePersonConversationRecord
+    {
+        public string ConversationId;
+        public string MsgDomain;
+        public string AppJWT;
+        public string ConsumerJWS;
+    }
+
     static class LivePersonConnector
     {
-        static public async Task EscalateToAgent(ITurnContext turnContext, IEventActivity handoffEvent, string account, string clientId, string clientSecret)
+        static public async Task<LivePersonConversationRecord> EscalateToAgent(ITurnContext turnContext, IEventActivity handoffEvent, string account, string clientId, string clientSecret, ConcurrentDictionary<string, ConversationReference> conversationReferences)
         {
             var sentinelDomain = await GetDomain(account, "sentinel");
             var appJWT = await GetAppJWT(account, sentinelDomain, clientId, clientSecret);
@@ -52,8 +62,12 @@ namespace LPProxyBot
             };
 
             var conversationId = await StartConversation(account, msgDomain, appJWT, consumerJWS, conversations);
-            var messageId = 1;
+            Debug.WriteLine($"Started LP conversation id {conversationId}");
 
+            conversationReferences.TryAdd(conversationId, turnContext.Activity.GetConversationReference());
+
+            var messageId = 1;
+#if false
             // First, play out the transcript
             var handoffActivity = handoffEvent as Activity;
             if (handoffActivity.Attachments != null)
@@ -74,29 +88,31 @@ namespace LPProxyBot
                     }
                 }
             }
-
-            var message = MakeLivePersonMessage(messageId++, turnContext.Activity.Text);
+#endif
+            var message = MakeLivePersonMessage(messageId++, conversationId, turnContext.Activity.Text);
             await SendMessageToConversation(account, msgDomain, appJWT, consumerJWS, conversationId, message);
 
-            Message MakeLivePersonMessage(int id, string text)
+            return new LivePersonConversationRecord { ConversationId = conversationId, AppJWT = appJWT, ConsumerJWS = consumerJWS, MsgDomain = msgDomain };
+        }
+
+        static public Message MakeLivePersonMessage(int id, string conversationId, string text)
+        {
+            return new Message
             {
-                return new Message
+                kind = "req",
+                id = id.ToString(),
+                type = "ms.PublishEvent",
+                body = new MessageBody
                 {
-                    kind = "req",
-                    id = id.ToString(),
-                    type = "ms.PublishEvent",
-                    body = new MessageBody
+                    dialogId = conversationId,
+                    @event = new MessageBodyEvent
                     {
-                        dialogId = conversationId,
-                        @event = new MessageBodyEvent
-                        {
-                            type = "ContentEvent",
-                            contentType = "text/plain",
-                            message = text
-                        }
+                        type = "ContentEvent",
+                        contentType = "text/plain",
+                        message = text
                     }
-                };
-            }
+                }
+            };
         }
 
         static private async Task<string> GetDomain(string account, string serviceName)
@@ -213,7 +229,7 @@ namespace LPProxyBot
             }
         }
 
-        static private async Task<int> SendMessageToConversation(string account, string domain, string appJWT, string consumerJWS, string conversationId, Message message)
+        static public async Task<int> SendMessageToConversation(string account, string domain, string appJWT, string consumerJWS, string conversationId, Message message)
         {
             using (var client = new HttpClient())
             {

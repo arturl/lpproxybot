@@ -12,6 +12,8 @@ using Microsoft.Extensions.DependencyInjection;
 using LPProxyBot.Bots;
 using Microsoft.Bot.Builder.EchoBot;
 using LPProxyBot;
+using System.Collections.Concurrent;
+using Microsoft.Bot.Schema;
 
 namespace LPProxyBot
 {
@@ -42,6 +44,8 @@ namespace LPProxyBot
 
             // Create the Bot Framework Adapter.
             services.AddSingleton<IBotFrameworkHttpAdapter, AdapterWithErrorHandler>();
+
+            services.AddSingleton<ConcurrentDictionary<string, ConversationReference>>();
 
             // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.
             services.AddTransient<IBot, Bots.LPProxyBot>();

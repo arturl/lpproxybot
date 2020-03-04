@@ -9,6 +9,7 @@ using LPProxyBot.Bots;
 using System.Net.Http;
 using Newtonsoft.Json;
 using System.Text;
+using System.Collections.Concurrent;
 
 namespace LPProxyBot
 {
@@ -16,11 +17,13 @@ namespace LPProxyBot
     {
         IConfiguration _configuration;
         private BotState _conversationState;
+        private ConcurrentDictionary<string, ConversationReference> _conversationReferences;
 
-        public HandoffMiddleware(IConfiguration configuration, ConversationState conversationState)
+        public HandoffMiddleware(IConfiguration configuration, ConversationState conversationState, ConcurrentDictionary<string, ConversationReference> conversationReferences)
         {
             _configuration = configuration;
             _conversationState = conversationState;
+            _conversationReferences = conversationReferences;
         }
 
         public async Task OnTurnAsync(ITurnContext turnContext, NextDelegate next, CancellationToken cancellationToken = default)
@@ -29,13 +32,17 @@ namespace LPProxyBot
             var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
             var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new ConversationData());
 
-            if (turnContext.Activity.Type == ActivityTypes.Message && conversationData.IsEscalated)
+            if (turnContext.Activity.Type == ActivityTypes.Message && conversationData.EscalationRecord != null)
             {
-                // TBD: check if the agent has ended the conversation. If so, reset conversationData.IsEscalated
+                var account = _configuration.GetValue<string>("LivePersonAccount");
+                var message = LivePersonConnector.MakeLivePersonMessage(0 /*?*/, conversationData.EscalationRecord.ConversationId, turnContext.Activity.Text);
 
-                // Don't send this message to the bot. Route it to the agent and get a response
-                // TBD: this will come from LivePerson
-                //await turnContext.SendActivityAsync($"You're talking with an agent. You said '{turnContext.Activity.Text}'. The agent said 'Hi!'.");
+                await LivePersonConnector.SendMessageToConversation(account,
+                    conversationData.EscalationRecord.MsgDomain,
+                    conversationData.EscalationRecord.AppJWT,
+                    conversationData.EscalationRecord.ConsumerJWS,
+                    conversationData.EscalationRecord.ConversationId,
+                    message);
                 return;
             }
 
@@ -46,14 +53,11 @@ namespace LPProxyBot
                 var handoffEvents = activities.Where(activity =>
                     activity.Type == ActivityTypes.Event && activity.Name == HandoffEventNames.InitiateHandoff);
 
-                if (handoffEvents.Any())
+                if (handoffEvents.Count() == 1)
                 {
+                    var handoffEvent = handoffEvents.First();
+                    conversationData.EscalationRecord = await Escalate(sendTurnContext, handoffEvent);
                     await _conversationState.SaveChangesAsync(turnContext);
-                    foreach (var handoffEvent in handoffEvents)
-                    {
-                        await Escalate(sendTurnContext, handoffEvent);
-                    }
-                    conversationData.IsEscalated = true;
                 }
 
                 // run full pipeline
@@ -64,15 +68,13 @@ namespace LPProxyBot
             await next(cancellationToken);
         }
 
-        private Task Escalate(ITurnContext turnContext, IEventActivity handoffEvent)
+        private Task<LivePersonConversationRecord> Escalate(ITurnContext turnContext, IEventActivity handoffEvent)
         {
-            Controllers.LivePersonController.g_conversationRef = turnContext.Activity.GetConversationReference();
-
             var account = _configuration.GetValue<string>("LivePersonAccount");
             var clientId = _configuration.GetValue<string>("LivePersonClientId");
             var clientSecret = _configuration.GetValue<string>("LivePersonClientSecret");
 
-            return LivePersonConnector.EscalateToAgent(turnContext, handoffEvent, account, clientId, clientSecret);
+            return LivePersonConnector.EscalateToAgent(turnContext, handoffEvent, account, clientId, clientSecret, _conversationReferences);
         }
     }
 }
