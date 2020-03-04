@@ -80,17 +80,15 @@ namespace LPProxyBot
                         {
                             var message2 = MakeLivePersonMessage(messageId++,
                                 conversationId,
-                                activity.Recipient == turnContext.Activity.Recipient ?
-                                    $"user: {activity.Text}" :
-                                    $"bot: {activity.Text}");
+                                $"{activity.From.Name}: {activity.Text}");
                             await SendMessageToConversation(account, msgDomain, appJWT, consumerJWS, conversationId, message2);
                         }
                     }
                 }
             }
 #endif
-            var message = MakeLivePersonMessage(messageId++, conversationId, turnContext.Activity.Text);
-            await SendMessageToConversation(account, msgDomain, appJWT, consumerJWS, conversationId, message);
+//            var message = MakeLivePersonMessage(messageId++, conversationId, turnContext.Activity.Text);
+//            await SendMessageToConversation(account, msgDomain, appJWT, consumerJWS, conversationId, message);
 
             return new LivePersonConversationRecord { ConversationId = conversationId, AppJWT = appJWT, ConsumerJWS = consumerJWS, MsgDomain = msgDomain };
         }

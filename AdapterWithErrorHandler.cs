@@ -11,9 +11,10 @@ namespace Microsoft.Bot.Builder.EchoBot
 {
     public class AdapterWithErrorHandler : BotFrameworkHttpAdapter
     {
-        public AdapterWithErrorHandler(IConfiguration configuration, ILogger<BotFrameworkHttpAdapter> logger, HandoffMiddleware handoffMiddleware, ConversationState conversationState = null)
+        public AdapterWithErrorHandler(IConfiguration configuration, ILogger<BotFrameworkHttpAdapter> logger, HandoffMiddleware handoffMiddleware, LoggingMiddleware loggingMiddleware, ConversationState conversationState = null)
             : base(configuration, logger)
         {
+            Use(loggingMiddleware);
             Use(handoffMiddleware);
 
             OnTurnError = async (turnContext, exception) =>

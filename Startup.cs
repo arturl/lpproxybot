@@ -52,6 +52,8 @@ namespace LPProxyBot
 
             services.AddSingleton<HandoffMiddleware>();
 
+            services.AddSingleton<LoggingMiddleware>();
+
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

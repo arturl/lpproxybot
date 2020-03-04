@@ -4,11 +4,13 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Schema;
+using Microsoft.VisualStudio.Web.CodeGeneration.Contracts.Messaging;
 
 namespace LPProxyBot.Bots
 {
@@ -20,6 +22,13 @@ namespace LPProxyBot.Bots
         {
             _conversationState = conversationState;
         }
+
+        static Dictionary<string, string> Capitals = new Dictionary<string, string>
+        {
+            ["France"] = "Paris",
+            ["Italy"] = "Rome",
+            ["Japan"] = "Tokyo"
+        };
 
         protected override async Task OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
@@ -33,36 +42,43 @@ namespace LPProxyBot.Bots
                 throw new InvalidOperationException("Bug: this conversation is in escalated state. The message must be routed to the agent");
             }
 
-            var userText = turnContext.Activity.Text;
-            if (userText == "agent")
+            var userText = turnContext.Activity.Text.ToLower();
+            if (userText.Contains("agent"))
             {
                 await turnContext.SendActivityAsync("Your request will be escalated to a human agent");
-
-                // Hack: normally the transcript would be collected by the bot (for example, by bot middleware)
-                var messages = new Activity[] {
-                    new Activity { Type = ActivityTypes.Message, Text = "Hello bot!", From = turnContext.Activity.From, Recipient = turnContext.Activity.Recipient },
-                    new Activity { Type = ActivityTypes.Message, Text = "Hello user!", From = turnContext.Activity.Recipient, Recipient = turnContext.Activity.From },
-                    new Activity { Type = ActivityTypes.Message, Text = "Can you help me with my refrigerator?", From = turnContext.Activity.From, Recipient = turnContext.Activity.Recipient },
-                    new Activity { Type = ActivityTypes.Message, Text = "Sorry, I can only help with dishwashers", From = turnContext.Activity.Recipient, Recipient = turnContext.Activity.From },
-                };
-
+                var messages = conversationData.ConversationLog.Where(a => a.Type == ActivityTypes.Message).ToList();
                 var evnt = EventFactory.CreateHandoffInitiation(turnContext, new { Skill = "Any" }, new Transcript(messages) );
                 await turnContext.SendActivityAsync(evnt);
                 return;
             }
 
-            var replyText = $"Echo: {userText}";
+            string replyText = $"Sorry, I cannot help you.";
+            if (userText == "hi")
+            {
+                replyText = "Hello!";
+            }
+            else
+            {
+                foreach (var country in Capitals.Keys)
+                {
+                    if (userText.Contains(country.ToLower()))
+                    {
+                        replyText = $"The capital of {country} is {Capitals[country]}";
+                    }
+                }
+            }
+
             await turnContext.SendActivityAsync(MessageFactory.Text(replyText, replyText), cancellationToken);
         }
 
         protected override async Task OnMembersAddedAsync(IList<ChannelAccount> membersAdded, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
         {
-            var welcomeText = "Hello and welcome!";
+            var welcomeText = "Hello! I can answer questions about geography.";
             foreach (var member in membersAdded)
             {
                 if (member.Id != turnContext.Activity.Recipient.Id)
                 {
-                    await turnContext.SendActivityAsync(MessageFactory.Text(welcomeText, welcomeText), cancellationToken);
+                    // await turnContext.SendActivityAsync(MessageFactory.Text(welcomeText, welcomeText), cancellationToken);
                 }
             }
         }
