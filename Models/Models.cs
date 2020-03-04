@@ -123,5 +123,45 @@ namespace LPProxyBot
         public int sequence { get; set; }
     }
 
+    // Webhook models:
 
+    namespace Webhook
+    {
+        public class WebhookData
+        {
+            public string kind { get; set; }
+            public Body body { get; set; }
+            public string type { get; set; }
+        }
+
+        public class Body
+        {
+            public Change[] changes { get; set; }
+        }
+
+        public class Change
+        {
+            public int sequence { get; set; }
+            public string originatorId { get; set; }
+            public Originatormetadata originatorMetadata { get; set; }
+            public long serverTimestamp { get; set; }
+            public Event @event { get; set; }
+            public string conversationId { get; set; }
+            public string dialogId { get; set; }
+        }
+
+        public class Originatormetadata
+        {
+            public string id { get; set; }
+            public string role { get; set; }
+        }
+
+        public class Event
+        {
+            public string type { get; set; }
+            public string chatState { get; set; }
+            public string message { get; set; }
+            public string contentType { get; set; }
+        }
+    }
 }

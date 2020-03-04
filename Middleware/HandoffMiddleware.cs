@@ -29,13 +29,13 @@ namespace LPProxyBot
             var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
             var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new ConversationData());
 
-            if (conversationData.IsEscalated)
+            if (turnContext.Activity.Type == ActivityTypes.Message && conversationData.IsEscalated)
             {
                 // TBD: check if the agent has ended the conversation. If so, reset conversationData.IsEscalated
 
                 // Don't send this message to the bot. Route it to the agent and get a response
                 // TBD: this will come from LivePerson
-                await turnContext.SendActivityAsync($"You're talking with an agent. You said '{turnContext.Activity.Text}'. The agent said 'Hi!'.");
+                //await turnContext.SendActivityAsync($"You're talking with an agent. You said '{turnContext.Activity.Text}'. The agent said 'Hi!'.");
                 return;
             }
 
@@ -48,12 +48,12 @@ namespace LPProxyBot
 
                 if (handoffEvents.Any())
                 {
-                    conversationData.IsEscalated = true;
                     await _conversationState.SaveChangesAsync(turnContext);
                     foreach (var handoffEvent in handoffEvents)
                     {
                         await Escalate(sendTurnContext, handoffEvent);
                     }
+                    conversationData.IsEscalated = true;
                 }
 
                 // run full pipeline
@@ -66,6 +66,8 @@ namespace LPProxyBot
 
         private Task Escalate(ITurnContext turnContext, IEventActivity handoffEvent)
         {
+            Controllers.LivePersonController.g_conversationRef = turnContext.Activity.GetConversationReference();
+
             var account = _configuration.GetValue<string>("LivePersonAccount");
             var clientId = _configuration.GetValue<string>("LivePersonClientId");
             var clientSecret = _configuration.GetValue<string>("LivePersonClientSecret");
