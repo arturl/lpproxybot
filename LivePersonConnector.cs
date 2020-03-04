@@ -8,7 +8,6 @@ using LPProxyBot.Bots;
 using System.Net.Http;
 using Newtonsoft.Json;
 using System.Text;
-using System.Diagnostics;
 using System.Collections.Concurrent;
 
 namespace LPProxyBot
@@ -62,12 +61,12 @@ namespace LPProxyBot
             };
 
             var conversationId = await StartConversation(account, msgDomain, appJWT, consumerJWS, conversations);
-            Debug.WriteLine($"Started LP conversation id {conversationId}");
+            System.Diagnostics.Debug.WriteLine($"Started LP conversation id {conversationId}");
 
             conversationReferences.TryAdd(conversationId, turnContext.Activity.GetConversationReference());
 
             var messageId = 1;
-#if false
+#if true
             // First, play out the transcript
             var handoffActivity = handoffEvent as Activity;
             if (handoffActivity.Attachments != null)
@@ -80,6 +79,7 @@ namespace LPProxyBot
                         foreach (var activity in transcript.Activities)
                         {
                             var message2 = MakeLivePersonMessage(messageId++,
+                                conversationId,
                                 activity.Recipient == turnContext.Activity.Recipient ?
                                     $"user: {activity.Text}" :
                                     $"bot: {activity.Text}");
