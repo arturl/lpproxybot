@@ -77,7 +77,7 @@ namespace Microsoft.Bot.Builder
             }
             else
             {
-                value = new { state, message };
+                value = $"{{ \"state\" : \"{state}\", \"message\" : \"{message}\" }}";
             }
 
             var handoffEvent = CreateHandoffEvent(HandoffEventNames.HandoffStatus, value, conversation);

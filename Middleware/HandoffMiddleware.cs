@@ -46,6 +46,20 @@ namespace LPProxyBot
                 return;
             }
 
+            if (turnContext.Activity.Type == ActivityTypes.Event && turnContext.Activity.Name == HandoffEventNames.HandoffStatus)
+            {
+                try
+                {
+                    var status = JsonConvert.DeserializeObject<LivePersonHandoffStatus>(turnContext.Activity.Value.ToString());
+                    if(status.state == "completed")
+                    {
+                        conversationData.EscalationRecord = null;
+                        await _conversationState.SaveChangesAsync(turnContext);
+                    }
+                }
+                catch { }
+            }
+
             turnContext.OnSendActivities(async (sendTurnContext, activities, nextSend) =>
             {
                 // Handle any escalation events, and let them propagate through the pipeline

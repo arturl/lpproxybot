@@ -126,6 +126,7 @@ namespace LPProxyBot.Bots
         }
     }
 
+    // TODO: move this
     class LivePersonHandoffStatus
     {
         public string state;

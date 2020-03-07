@@ -175,6 +175,7 @@ namespace LPProxyBot.Controllers
                                     var evnt = EventFactory.CreateHandoffStatus(conversationRef.Conversation, "completed") as Activity;
                                     evnt.ApplyConversationReference(conversationRef, true);
                                     await _adapter.ProcessActivityAsync(evnt, _bot.OnTurnAsync, default(CancellationToken));
+                                    _conversationReferences.TryRemove(convId, out conversationRef);
                                 }
                                 break;
                             case "OPEN":
