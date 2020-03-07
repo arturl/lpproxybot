@@ -55,7 +55,7 @@ namespace LivePersonConnector.Controllers
             var account = request.Headers["X-Liveperson-Account-Id"];
             var clientId = request.Headers["X-Liveperson-Client-Id"];
 
-            if(account == _creds.Account && clientId == _creds.LpAppId)
+            if(account == _creds.LpAccount && clientId == _creds.LpAppId)
             {
                 return true;
             }

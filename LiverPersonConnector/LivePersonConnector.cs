@@ -13,7 +13,7 @@ namespace LivePersonConnector
 {
     public interface ICredentialsProvider
     {
-        string Account { get; }
+        string LpAccount { get; }
         string LpAppId { get; }
         string LpAppSecret { get; }
         string MsAppId { get; }

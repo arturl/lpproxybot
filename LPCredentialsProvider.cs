@@ -11,7 +11,7 @@ namespace LPProxyBot
     {
         public LPCredentialsProvider(IConfiguration configuration)
         {
-            Account = configuration["LivePersonAccount"];
+            LpAccount = configuration["LivePersonAccount"];
             LpAppId = configuration["LivePersonClientId"];
             LpAppSecret = configuration["LivePersonClientSecret"];
             MsAppId = configuration["MicrosoftAppId"];
@@ -25,7 +25,7 @@ namespace LPProxyBot
             }
         }
 
-        public string Account { get; }
+        public string LpAccount { get; }
 
         public string LpAppId { get; }
 

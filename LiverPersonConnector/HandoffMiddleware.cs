@@ -13,15 +13,15 @@ namespace LivePersonConnector
 {
     public class HandoffMiddleware : IMiddleware
     {
-        IConfiguration _configuration;
-        private BotState _conversationState;
-        private ConversationMap _conversationMap;
+        private readonly BotState _conversationState;
+        private readonly ConversationMap _conversationMap;
+        private readonly ICredentialsProvider _creds;
 
-        public HandoffMiddleware(IConfiguration configuration, ConversationState conversationState, ConversationMap conversationMap)
+        public HandoffMiddleware(ConversationState conversationState, ConversationMap conversationMap, ICredentialsProvider creds)
         {
-            _configuration = configuration;
             _conversationState = conversationState;
             _conversationMap = conversationMap;
+            _creds = creds;
         }
 
         public async Task OnTurnAsync(ITurnContext turnContext, NextDelegate next, CancellationToken cancellationToken = default)
@@ -32,7 +32,7 @@ namespace LivePersonConnector
 
             if (turnContext.Activity.Type == ActivityTypes.Message && conversationData.EscalationRecord != null)
             {
-                var account = _configuration.GetValue<string>("LivePersonAccount");
+                var account = _creds.LpAccount;
                 var message = LivePersonConnector.MakeLivePersonMessage(0 /*?*/, conversationData.EscalationRecord.ConversationId, turnContext.Activity.Text);
 
                 await LivePersonConnector.SendMessageToConversation(account,
@@ -82,9 +82,9 @@ namespace LivePersonConnector
 
         private Task<LivePersonConversationRecord> Escalate(ITurnContext turnContext, IEventActivity handoffEvent)
         {
-            var account = _configuration.GetValue<string>("LivePersonAccount");
-            var clientId = _configuration.GetValue<string>("LivePersonClientId");
-            var clientSecret = _configuration.GetValue<string>("LivePersonClientSecret");
+            var account = _creds.LpAccount;
+            var clientId = _creds.LpAppId;
+            var clientSecret = _creds.LpAppSecret;
 
             return LivePersonConnector.EscalateToAgent(turnContext, handoffEvent, account, clientId, clientSecret, _conversationMap);
         }
