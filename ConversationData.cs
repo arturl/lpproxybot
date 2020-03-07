@@ -11,6 +11,5 @@ namespace LPProxyBot.Bots
     {
         public LivePersonConversationRecord EscalationRecord { get; set; } = null;
         public List<Activity> ConversationLog { get; set; } = new List<Activity>();
-        public bool Acked { get; set; } = false;
     }
 }

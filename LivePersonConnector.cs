@@ -22,7 +22,7 @@ namespace LPProxyBot
 
     static class LivePersonConnector
     {
-        static public async Task<LivePersonConversationRecord> EscalateToAgent(ITurnContext turnContext, IEventActivity handoffEvent, string account, string clientId, string clientSecret, ConcurrentDictionary<string, ConversationReference> conversationReferences)
+        static public async Task<LivePersonConversationRecord> EscalateToAgent(ITurnContext turnContext, IEventActivity handoffEvent, string account, string clientId, string clientSecret, ConversationMap conversationMap)
         {
             var sentinelDomain = await GetDomain(account, "sentinel");
             var appJWT = await GetAppJWT(account, sentinelDomain, clientId, clientSecret);
@@ -67,7 +67,7 @@ namespace LPProxyBot
             var conversationId = await StartConversation(account, msgDomain, appJWT, consumerJWS, conversations);
             System.Diagnostics.Debug.WriteLine($"Started LP conversation id {conversationId}");
 
-            conversationReferences.TryAdd(conversationId, turnContext.Activity.GetConversationReference());
+            conversationMap.ConversationRecords.TryAdd(conversationId, new ConversationRecord { ConversationReference = turnContext.Activity.GetConversationReference() });
 
             var messageId = 1;
 #if true

@@ -43,7 +43,7 @@ namespace LPProxyBot
             // Create the Bot Framework Adapter.
             services.AddSingleton<IBotFrameworkHttpAdapter, LivePersonAdapter>();
 
-            services.AddSingleton<ConcurrentDictionary<string, ConversationReference>>();
+            services.AddSingleton<ConversationMap>();
 
             // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.
             services.AddTransient<IBot, Bots.LPProxyBot>();

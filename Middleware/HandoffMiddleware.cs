@@ -10,17 +10,29 @@ using Newtonsoft.Json.Linq;
 
 namespace LPProxyBot
 {
+    public class ConversationRecord
+    {
+        public ConversationReference ConversationReference;
+        public bool IsAcked = false;
+        public bool IsClosed = false;
+    }
+
+    public class ConversationMap
+    {
+        public ConcurrentDictionary<string, ConversationRecord> ConversationRecords = new ConcurrentDictionary<string, ConversationRecord>();
+    }
+
     public class HandoffMiddleware : IMiddleware
     {
         IConfiguration _configuration;
         private BotState _conversationState;
-        private ConcurrentDictionary<string, ConversationReference> _conversationReferences;
+        private ConversationMap _conversationMap;
 
-        public HandoffMiddleware(IConfiguration configuration, ConversationState conversationState, ConcurrentDictionary<string, ConversationReference> conversationReferences)
+        public HandoffMiddleware(IConfiguration configuration, ConversationState conversationState, ConversationMap conversationMap)
         {
             _configuration = configuration;
             _conversationState = conversationState;
-            _conversationReferences = conversationReferences;
+            _conversationMap = conversationMap;
         }
 
         public async Task OnTurnAsync(ITurnContext turnContext, NextDelegate next, CancellationToken cancellationToken = default)
@@ -85,7 +97,7 @@ namespace LPProxyBot
             var clientId = _configuration.GetValue<string>("LivePersonClientId");
             var clientSecret = _configuration.GetValue<string>("LivePersonClientSecret");
 
-            return LivePersonConnector.EscalateToAgent(turnContext, handoffEvent, account, clientId, clientSecret, _conversationReferences);
+            return LivePersonConnector.EscalateToAgent(turnContext, handoffEvent, account, clientId, clientSecret, _conversationMap);
         }
     }
 }

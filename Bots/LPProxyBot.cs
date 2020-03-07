@@ -89,14 +89,7 @@ namespace LPProxyBot.Bots
                 var state = (turnContext.Activity.Value as JObject)?.Value<string>("state");
                 if (state == "accepted")
                 {
-                    // TODO: race condition here. move this to middleware
-                    if(conversationData.Acked)
-                    {
-                        // already acked, get out
-                        return;
-                    }
                     text = "An agent has accepted the conversation and will respond shortly.";
-                    conversationData.Acked = true;
                     await _conversationState.SaveChangesAsync(turnContext);
                 }
                 else if (state == "completed")

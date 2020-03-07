@@ -25,15 +25,17 @@ namespace LPProxyBot.Controllers
         private readonly LivePersonAdapter _adapter;
         IConfiguration _configuration;
         private readonly IBot _bot;
-        private ConcurrentDictionary<string, ConversationReference> _conversationReferences;
+
+        // This must be a durable storage in multi-instance scenario
+        private ConversationMap _conversationMap;
         private readonly string _appId;
 
-        public LivePersonController(IBotFrameworkHttpAdapter adapter, IConfiguration configuration, IBot bot, ConcurrentDictionary<string, ConversationReference> conversationReferences)
+        public LivePersonController(IBotFrameworkHttpAdapter adapter, IConfiguration configuration, IBot bot, ConversationMap conversationMap)
         {
             _adapter = (LivePersonAdapter)adapter;
             _configuration = configuration;
             _bot = bot;
-            _conversationReferences = conversationReferences;
+            _conversationMap = conversationMap;
             _appId = _configuration["MicrosoftAppId"];
 
             // If the channel is the Emulator, and authentication is not in use,
@@ -61,12 +63,29 @@ namespace LPProxyBot.Controllers
                         {
                             // Agent has accepted the conversation
                             var convId = change?.conversationId;
-                            ConversationReference conversationRef;
-                            if (_conversationReferences.TryGetValue(convId, out conversationRef))
+                            ConversationRecord conversationRec;
+                            if (_conversationMap.ConversationRecords.TryGetValue(convId, out conversationRec))
                             {
-                                var evnt = EventFactory.CreateHandoffStatus(conversationRef.Conversation, "accepted") as Activity;
-                                evnt.ApplyConversationReference(conversationRef, true);
-                                await _adapter.ProcessActivityAsync(evnt, _bot.OnTurnAsync, default(CancellationToken));
+                                if(conversationRec.IsAcked || conversationRec.IsClosed)
+                                {
+                                    // Already acked this one
+                                    break;
+                                }
+
+                                var newConversationRec = new ConversationRecord
+                                {
+                                    ConversationReference = conversationRec.ConversationReference,
+                                    IsClosed = conversationRec.IsClosed,
+                                    IsAcked = true
+                                };
+
+                                // Update atomically -- only one will succeed
+                                if (_conversationMap.ConversationRecords.TryUpdate(convId, newConversationRec, conversationRec))
+                                {
+                                    var evnt = EventFactory.CreateHandoffStatus(newConversationRec.ConversationReference.Conversation, "accepted") as Activity;
+                                    evnt.ApplyConversationReference(newConversationRec.ConversationReference, true);
+                                    await _adapter.ProcessActivityAsync(evnt, _bot.OnTurnAsync, default(CancellationToken));
+                                }
                             }
                         }
                     }
@@ -110,17 +129,20 @@ namespace LPProxyBot.Controllers
                         {
                             var humanActivity = MessageFactory.Text(change.@event.message);
 
-                            ConversationReference conversationRef;
-                            if (_conversationReferences.TryGetValue(change.conversationId, out conversationRef))
+                            ConversationRecord conversationRec;
+                            if (_conversationMap.ConversationRecords.TryGetValue(change.conversationId, out conversationRec))
                             {
-                                MicrosoftAppCredentials.TrustServiceUrl(conversationRef.ServiceUrl);
+                                if (!conversationRec.IsClosed)
+                                {
+                                    MicrosoftAppCredentials.TrustServiceUrl(conversationRec.ConversationReference.ServiceUrl);
 
-                                await _adapter.ContinueConversationAsync(
-                                    _appId,
-                                    conversationRef,
-                                    (ITurnContext turnContext, CancellationToken cancellationToken) =>
-                                        turnContext.SendActivityAsync(humanActivity, cancellationToken),
-                                    default(CancellationToken));
+                                    await _adapter.ContinueConversationAsync(
+                                        _appId,
+                                        conversationRec.ConversationReference,
+                                        (ITurnContext turnContext, CancellationToken cancellationToken) =>
+                                            turnContext.SendActivityAsync(humanActivity, cancellationToken),
+                                        default(CancellationToken));
+                                }
                             }
                             else
                             {
@@ -169,13 +191,16 @@ namespace LPProxyBot.Controllers
                             case "CLOSE":
                                 // Agent has closed the conversation
                                 var convId = change?.result?.convId;
-                                ConversationReference conversationRef;
-                                if (_conversationReferences.TryGetValue(convId, out conversationRef))
+                                ConversationRecord conversationRec;
+                                if (_conversationMap.ConversationRecords.TryGetValue(convId, out conversationRec))
                                 {
-                                    var evnt = EventFactory.CreateHandoffStatus(conversationRef.Conversation, "completed") as Activity;
-                                    evnt.ApplyConversationReference(conversationRef, true);
+                                    var evnt = EventFactory.CreateHandoffStatus(conversationRec.ConversationReference.Conversation, "completed") as Activity;
+                                    evnt.ApplyConversationReference(conversationRec.ConversationReference, true);
                                     await _adapter.ProcessActivityAsync(evnt, _bot.OnTurnAsync, default(CancellationToken));
-                                    _conversationReferences.TryRemove(convId, out conversationRef);
+
+                                    // Close event happens only once, so don't worry about race conditions here
+                                    // Records are not removed from the dictionary since agents can reopen conversations
+                                    conversationRec.IsClosed = true;
                                 }
                                 break;
                             case "OPEN":
