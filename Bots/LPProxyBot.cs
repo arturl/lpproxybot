@@ -10,24 +10,31 @@ using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Connector;
 using Microsoft.Bot.Schema;
+using Microsoft.Extensions.Configuration;
 using Microsoft.VisualStudio.Web.CodeGeneration.Contracts.Messaging;
+using Newtonsoft.Json;
 
 namespace LPProxyBot.Bots
 {
     public class LPProxyBot : ActivityHandler
     {
-        private BotState _conversationState;
+        private readonly BotState _conversationState;
+        private readonly IConfiguration _configuration;
+        private readonly string _appId;
 
-        public LPProxyBot(ConversationState conversationState)
+        public LPProxyBot(ConversationState conversationState, IConfiguration configuration)
         {
             _conversationState = conversationState;
+            _appId = configuration["MicrosoftAppId"];
         }
 
         static Dictionary<string, string> Capitals = new Dictionary<string, string>
         {
             ["France"] = "Paris",
             ["Italy"] = "Rome",
-            ["Japan"] = "Tokyo"
+            ["Japan"] = "Tokyo",
+            ["Poland"] = "Warsaw",
+            ["Germany"] = "Hamburg" // not really
         };
 
         protected override async Task OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
@@ -46,41 +53,82 @@ namespace LPProxyBot.Bots
             if (userText.Contains("agent"))
             {
                 await turnContext.SendActivityAsync("Your request will be escalated to a human agent");
-                var messages = conversationData.ConversationLog.Where(a => a.Type == ActivityTypes.Message).ToList();
-                var evnt = EventFactory.CreateHandoffInitiation(turnContext, new { Skill = "Any" }, new Transcript(messages) );
-                await turnContext.SendActivityAsync(evnt);
-                return;
-            }
 
-            string replyText = $"Sorry, I cannot help you.";
-            if (userText == "hi")
-            {
-                replyText = "Hello!";
+                var transcript = new Transcript(conversationData.ConversationLog.Where(a => a.Type == ActivityTypes.Message).ToList());
+
+                var evnt = EventFactory.CreateHandoffInitiation(turnContext, new { Skill = "Credit Cards" }, transcript);
+
+                await turnContext.SendActivityAsync(evnt);
             }
             else
             {
-                foreach (var country in Capitals.Keys)
+                string replyText = $"Sorry, I cannot help you.";
+                if (userText == "hi")
                 {
-                    if (userText.Contains(country.ToLower()))
+                    replyText = "Hello!";
+                }
+                else
+                {
+                    foreach (var country in Capitals.Keys)
                     {
-                        replyText = $"The capital of {country} is {Capitals[country]}";
+                        if (userText.Contains(country.ToLower()))
+                        {
+                            replyText = $"The capital of {country} is {Capitals[country]}";
+                        }
                     }
                 }
-            }
 
-            await turnContext.SendActivityAsync(MessageFactory.Text(replyText, replyText), cancellationToken);
+                await turnContext.SendActivityAsync(MessageFactory.Text(replyText, replyText), cancellationToken);
+            }
         }
 
-        protected override async Task OnMembersAddedAsync(IList<ChannelAccount> membersAdded, ITurnContext<IConversationUpdateActivity> turnContext, CancellationToken cancellationToken)
+        protected override async Task OnEventAsync(ITurnContext<IEventActivity> turnContext, CancellationToken cancellationToken)
         {
-            var welcomeText = "Hello! I can answer questions about geography.";
-            foreach (var member in membersAdded)
+            if(turnContext.Activity.Name == "handoff.status")
             {
-                if (member.Id != turnContext.Activity.Recipient.Id)
+                var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
+                var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new ConversationData());
+
+                var status = JsonConvert.DeserializeObject<LivePersonHandoffStatus>(turnContext.Activity.Value.ToString());
+                string text;
+                if(status.state == "accepted")
                 {
-                    // await turnContext.SendActivityAsync(MessageFactory.Text(welcomeText, welcomeText), cancellationToken);
+                    if(conversationData.Acked)
+                    {
+                        // already acked, get out
+                        return;
+                    }
+                    text = "An agent has accepted the conversation and will respond shortly.";
+                    conversationData.Acked = true;
+                    await _conversationState.SaveChangesAsync(turnContext);
                 }
+                else if (status.state == "completed")
+                {
+                    text = "The agent has closed the conversation.";
+                }
+                else
+                {
+                    text = $"Conversation status changed to '{status.state}'";
+                }
+
+                // Can only respond as a proactive message, not directly on turnContext
+
+                var conversationRef = turnContext.Activity.GetConversationReference();
+                await turnContext.Adapter.ContinueConversationAsync(
+                    _appId,
+                    conversationRef,
+                    (ITurnContext turnContext, CancellationToken cancellationToken) =>
+                        turnContext.SendActivityAsync(MessageFactory.Text(text), cancellationToken),
+                    default(CancellationToken));
             }
+
+            await base.OnEventAsync(turnContext, cancellationToken);
         }
+    }
+
+    class LivePersonHandoffStatus
+    {
+        public string state;
+        public string message;
     }
 }

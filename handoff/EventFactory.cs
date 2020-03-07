@@ -72,7 +72,8 @@ namespace Microsoft.Bot.Builder
 
             if (string.IsNullOrEmpty(message))
             {
-                value = new { state };
+                //value = new { state };
+                value = $"{{ \"state\" : \"{state}\" }}";
             }
             else
             {

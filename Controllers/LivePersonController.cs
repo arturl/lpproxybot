@@ -22,7 +22,7 @@ namespace LPProxyBot.Controllers
     [ApiController]
     public class LivePersonController : ControllerBase
     {
-        private readonly IBotFrameworkHttpAdapter _adapter;
+        private readonly LivePersonAdapter _adapter;
         IConfiguration _configuration;
         private readonly IBot _bot;
         private ConcurrentDictionary<string, ConversationReference> _conversationReferences;
@@ -30,11 +30,11 @@ namespace LPProxyBot.Controllers
 
         public LivePersonController(IBotFrameworkHttpAdapter adapter, IConfiguration configuration, IBot bot, ConcurrentDictionary<string, ConversationReference> conversationReferences)
         {
-            _adapter = adapter;
+            _adapter = (LivePersonAdapter)adapter;
             _configuration = configuration;
             _bot = bot;
             _conversationReferences = conversationReferences;
-            _appId = configuration["MicrosoftAppId"];
+            _appId = _configuration["MicrosoftAppId"];
 
             // If the channel is the Emulator, and authentication is not in use,
             // the AppId will be null.  We generate a random AppId for this case only.
@@ -54,7 +54,22 @@ namespace LPProxyBot.Controllers
                 var body = await readStream.ReadToEndAsync();
                 try
                 {
-                    var wbhookData = JsonConvert.DeserializeObject<Webhook.WebhookData>(body);
+                    var wbhookData = JsonConvert.DeserializeObject<AcceptStatusEvent.WebhookData>(body);
+                    foreach (var change in wbhookData.body.changes)
+                    {
+                        if(change?.originatorMetadata?.role == "ASSIGNED_AGENT")
+                        {
+                            // Agent has accepted the conversation
+                            var convId = change?.conversationId;
+                            ConversationReference conversationRef;
+                            if (_conversationReferences.TryGetValue(convId, out conversationRef))
+                            {
+                                var evnt = EventFactory.CreateHandoffStatus(conversationRef.Conversation, "accepted") as Activity;
+                                evnt.ApplyConversationReference(conversationRef, true);
+                                await _adapter.ProcessActivityAsync(evnt, _bot.OnTurnAsync, default(CancellationToken));
+                            }
+                        }
+                    }
                 }
                 catch { }
             }
@@ -100,7 +115,7 @@ namespace LPProxyBot.Controllers
                             {
                                 MicrosoftAppCredentials.TrustServiceUrl(conversationRef.ServiceUrl);
 
-                                await (_adapter as BotAdapter).ContinueConversationAsync(
+                                await _adapter.ContinueConversationAsync(
                                     _appId,
                                     conversationRef,
                                     (ITurnContext turnContext, CancellationToken cancellationToken) =>
@@ -129,6 +144,43 @@ namespace LPProxyBot.Controllers
                 try
                 {
                     var wbhookData = JsonConvert.DeserializeObject<Webhook.WebhookData>(body);
+                }
+                catch { }
+            }
+            Response.StatusCode = 200;
+        }
+
+        [HttpPost]
+        [Route("ExConversationChangeNotification")]
+        public async Task PostExConversationChangeNotification()
+        {
+            using (StreamReader readStream = new StreamReader(Request.Body, Encoding.UTF8))
+            {
+                var body = await readStream.ReadToEndAsync();
+                try
+                {
+                    var wbhookData = JsonConvert.DeserializeObject<ExConversationChangeNotification.WebhookData>(body);
+
+                    foreach (var change in wbhookData.body.changes)
+                    {
+                        string state = change?.result?.conversationDetails?.state;
+                        switch(state)
+                        {
+                            case "CLOSE":
+                                // Agent has closed the conversation
+                                var convId = change?.result?.convId;
+                                ConversationReference conversationRef;
+                                if (_conversationReferences.TryGetValue(convId, out conversationRef))
+                                {
+                                    var evnt = EventFactory.CreateHandoffStatus(conversationRef.Conversation, "completed") as Activity;
+                                    evnt.ApplyConversationReference(conversationRef, true);
+                                    await _adapter.ProcessActivityAsync(evnt, _bot.OnTurnAsync, default(CancellationToken));
+                                }
+                                break;
+                            case "OPEN":
+                                break;
+                        }
+                    }
                 }
                 catch { }
             }

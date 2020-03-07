@@ -2,16 +2,22 @@
 // Licensed under the MIT License.
 
 using LPProxyBot;
+using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
 using Microsoft.Bot.Builder.TraceExtensions;
+using Microsoft.Bot.Connector;
+using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace Microsoft.Bot.Builder.EchoBot
+namespace LPProxyBot
 {
-    public class AdapterWithErrorHandler : BotFrameworkHttpAdapter
+    public class LivePersonAdapter : BotFrameworkHttpAdapter
     {
-        public AdapterWithErrorHandler(IConfiguration configuration, ILogger<BotFrameworkHttpAdapter> logger, HandoffMiddleware handoffMiddleware, LoggingMiddleware loggingMiddleware, ConversationState conversationState = null)
+        public LivePersonAdapter(IConfiguration configuration, ILogger<BotFrameworkHttpAdapter> logger, HandoffMiddleware handoffMiddleware, LoggingMiddleware loggingMiddleware, ConversationState conversationState = null)
             : base(configuration, logger)
         {
             Use(loggingMiddleware);
@@ -29,6 +35,16 @@ namespace Microsoft.Bot.Builder.EchoBot
                 // Send a trace activity, which will be displayed in the Bot Framework Emulator
                 await turnContext.TraceActivityAsync("OnTurnError Trace", exception.Message, "https://www.botframework.com/schemas/error", "TurnError");
             };
+        }
+
+        public async Task ProcessActivityAsync(Activity activity, BotCallbackHandler callback, CancellationToken cancellationToken)
+        {
+            BotAssert.ActivityNotNull(activity);
+
+            using (var context = new TurnContext(this, activity))
+            {
+                await base.RunPipelineAsync(context, callback, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
 }

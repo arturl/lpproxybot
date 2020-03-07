@@ -8,9 +8,7 @@ using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-
 using LPProxyBot.Bots;
-using Microsoft.Bot.Builder.EchoBot;
 using LPProxyBot;
 using System.Collections.Concurrent;
 using Microsoft.Bot.Schema;
@@ -43,7 +41,7 @@ namespace LPProxyBot
             services.AddSingleton(conversationState);
 
             // Create the Bot Framework Adapter.
-            services.AddSingleton<IBotFrameworkHttpAdapter, AdapterWithErrorHandler>();
+            services.AddSingleton<IBotFrameworkHttpAdapter, LivePersonAdapter>();
 
             services.AddSingleton<ConcurrentDictionary<string, ConversationReference>>();
 

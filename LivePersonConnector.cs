@@ -32,6 +32,9 @@ namespace LPProxyBot
 
             var idpDomain = await GetDomain(account, "idp");
             var consumerJWS = await GetConsumerJWS(account, idpDomain, appJWT, consumer);
+            
+            // This can be null:
+            var skill = handoffEvent.Value.GetType().GetProperty("Skill")?.GetValue(handoffEvent.Value, null) as string;
 
             var msgDomain = await GetDomain(account, "asyncMessagingEnt");
             var conversations = new Conversation[] {
@@ -56,6 +59,7 @@ namespace LPProxyBot
                         kind = "req",
                         id = "2,",
                         type = "cm.ConsumerRequestConversation",
+                        skillId = skill,
                         body = new Body { brandId = account }
                     },
             };
@@ -254,7 +258,7 @@ namespace LPProxyBot
                 }
                 else
                 {
-                    throw new Exception($"Failed to StartConversation");
+                    throw new Exception($"Failed to send message to conversation. Response code {response.StatusCode}");
                 }
             }
         }
