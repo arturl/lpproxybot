@@ -25,8 +25,8 @@ namespace LPProxyBot
         public async Task OnTurnAsync(ITurnContext turnContext, NextDelegate next, CancellationToken cancellationToken = default)
         {
             // Route the conversation based on whether it's been escalated
-            var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
-            var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new ConversationData());
+            var conversationStateAccessors = _conversationState.CreateProperty<LoggingConversationData>(nameof(LoggingConversationData));
+            var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new LoggingConversationData());
 
             conversationData.ConversationLog.Add(turnContext.Activity);
             await _conversationState.SaveChangesAsync(turnContext);

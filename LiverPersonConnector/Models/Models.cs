@@ -5,11 +5,10 @@ using System.Threading.Tasks;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
 using System.Linq;
-using LPProxyBot.Bots;
 using System.Net.Http;
 using Newtonsoft.Json;
 
-namespace LPProxyBot
+namespace LivePersonConnector
 {
     public class DomainInfo
     {

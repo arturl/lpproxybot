@@ -1,27 +1,16 @@
-﻿using System.Collections.Concurrent;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
+
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using LPProxyBot.Bots;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json.Linq;
 
-namespace LPProxyBot
+namespace LivePersonConnector
 {
-    public class ConversationRecord
-    {
-        public ConversationReference ConversationReference;
-        public bool IsAcked = false;
-        public bool IsClosed = false;
-    }
-
-    public class ConversationMap
-    {
-        public ConcurrentDictionary<string, ConversationRecord> ConversationRecords = new ConcurrentDictionary<string, ConversationRecord>();
-    }
-
     public class HandoffMiddleware : IMiddleware
     {
         IConfiguration _configuration;
@@ -38,8 +27,8 @@ namespace LPProxyBot
         public async Task OnTurnAsync(ITurnContext turnContext, NextDelegate next, CancellationToken cancellationToken = default)
         {
             // Route the conversation based on whether it's been escalated
-            var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
-            var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new ConversationData());
+            var conversationStateAccessors = _conversationState.CreateProperty<EscalationsConversationData>(nameof(EscalationsConversationData));
+            var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new EscalationsConversationData());
 
             if (turnContext.Activity.Type == ActivityTypes.Message && conversationData.EscalationRecord != null)
             {

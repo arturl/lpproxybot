@@ -1,16 +1,15 @@
-﻿using System;
-using Microsoft.Bot.Builder;
-using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Bot.Schema;
-using System.Linq;
-using LPProxyBot.Bots;
-using System.Net.Http;
-using Newtonsoft.Json;
-using System.Text;
-using System.Collections.Concurrent;
+﻿// Copyright (c) Microsoft Corporation. All rights reserved.
+// Licensed under the MIT License.
 
-namespace LPProxyBot
+using System;
+using System.Net.Http;
+using System.Text;
+using System.Threading.Tasks;
+using Microsoft.Bot.Builder;
+using Microsoft.Bot.Schema;
+using Newtonsoft.Json;
+
+namespace LivePersonConnector
 {
     class LivePersonConversationRecord
     {

@@ -35,15 +35,8 @@ namespace LPProxyBot.Bots
 
         protected override async Task OnMessageActivityAsync(ITurnContext<IMessageActivity> turnContext, CancellationToken cancellationToken)
         {
-            var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
-            var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new ConversationData());
-            if (conversationData.EscalationRecord != null)
-            {
-                // In the current implementation, a conversation is considered escalated as soon as the user
-                // asks for an escalation. Other strategy would make it escalated after an agent has responded
-                // to the request. Until then, the conversation must be handled by the bot.
-                throw new InvalidOperationException("Bug: this conversation is in escalated state. The message must be routed to the agent");
-            }
+            var conversationStateAccessors = _conversationState.CreateProperty<LoggingConversationData>(nameof(LoggingConversationData));
+            var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new LoggingConversationData());
 
             var userText = turnContext.Activity.Text.ToLower();
             if (userText.Contains("agent"))
@@ -82,8 +75,8 @@ namespace LPProxyBot.Bots
         {
             if(turnContext.Activity.Name == "handoff.status")
             {
-                var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
-                var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new ConversationData());
+                var conversationStateAccessors = _conversationState.CreateProperty<LoggingConversationData>(nameof(LoggingConversationData));
+                var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new LoggingConversationData());
 
                 string text;
                 var state = (turnContext.Activity.Value as JObject)?.Value<string>("state");
