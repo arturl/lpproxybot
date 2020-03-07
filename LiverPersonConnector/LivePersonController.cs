@@ -3,9 +3,11 @@
 
 using System;
 using System.IO;
+using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
@@ -21,28 +23,44 @@ namespace LivePersonConnector.Controllers
     public class LivePersonController : ControllerBase
     {
         private readonly LivePersonAdapter _adapter;
-        IConfiguration _configuration;
         private readonly IBot _bot;
+        private readonly ICredentialsProvider _creds;
 
         // This must be a durable storage in multi-instance scenario
-        private ConversationMap _conversationMap;
-        private readonly string _appId;
+        private readonly ConversationMap _conversationMap;
 
-        public LivePersonController(IBotFrameworkHttpAdapter adapter, IConfiguration configuration, IBot bot, ConversationMap conversationMap)
+        public LivePersonController(IBotFrameworkHttpAdapter adapter, ICredentialsProvider creds, IBot bot, ConversationMap conversationMap)
         {
             _adapter = (LivePersonAdapter)adapter;
-            _configuration = configuration;
             _bot = bot;
+            _creds = creds;
             _conversationMap = conversationMap;
-            _appId = _configuration["MicrosoftAppId"];
+        }
 
-            // If the channel is the Emulator, and authentication is not in use,
-            // the AppId will be null.  We generate a random AppId for this case only.
-            // This is not required for production, since the AppId will have a value.
-            if (string.IsNullOrEmpty(_appId))
+        private bool Authenticate(HttpRequest request, string body)
+        {
+            using (var hmac = new HMACSHA1(Encoding.UTF8.GetBytes(_creds.LpAppSecret)))
             {
-                _appId = Guid.NewGuid().ToString(); //if no AppId, use a random Guid
+                var hash = hmac.ComputeHash(Encoding.ASCII.GetBytes(body));
+                var signature = $"sha1={Convert.ToBase64String(hash)}";
+                if(signature != request.Headers["X-Liveperson-Signature"])
+                {
+                    Response.StatusCode = 401;
+                    return false;
+                }
             }
+
+            Response.StatusCode = 200;
+
+            var account = request.Headers["X-Liveperson-Account-Id"];
+            var clientId = request.Headers["X-Liveperson-Client-Id"];
+
+            if(account == _creds.Account && clientId == _creds.LpAppId)
+            {
+                return true;
+            }
+
+            return false;
         }
 
         [HttpPost]
@@ -52,6 +70,9 @@ namespace LivePersonConnector.Controllers
             using (StreamReader readStream = new StreamReader(Request.Body, Encoding.UTF8))
             {
                 var body = await readStream.ReadToEndAsync();
+
+                if (!Authenticate(Request, body)) return;
+
                 try
                 {
                     var wbhookData = JsonConvert.DeserializeObject<AcceptStatusEvent.WebhookData>(body);
@@ -100,6 +121,9 @@ namespace LivePersonConnector.Controllers
             using (StreamReader readStream = new StreamReader(Request.Body, Encoding.UTF8))
             {
                 var body = await readStream.ReadToEndAsync();
+
+                if (!Authenticate(Request, body)) return;
+
                 try
                 {
                     var wbhookData = JsonConvert.DeserializeObject<Webhook.WebhookData>(body);
@@ -116,6 +140,8 @@ namespace LivePersonConnector.Controllers
             using (StreamReader readStream = new StreamReader(Request.Body, Encoding.UTF8))
             {
                 var body = await readStream.ReadToEndAsync();
+
+                if (!Authenticate(Request, body)) return;
 
                 var wbhookData = JsonConvert.DeserializeObject<Webhook.WebhookData>(body);
 
@@ -135,7 +161,7 @@ namespace LivePersonConnector.Controllers
                                     MicrosoftAppCredentials.TrustServiceUrl(conversationRec.ConversationReference.ServiceUrl);
 
                                     await _adapter.ContinueConversationAsync(
-                                        _appId,
+                                        _creds.MsAppId,
                                         conversationRec.ConversationReference,
                                         (ITurnContext turnContext, CancellationToken cancellationToken) =>
                                             turnContext.SendActivityAsync(humanActivity, cancellationToken),
@@ -161,6 +187,9 @@ namespace LivePersonConnector.Controllers
             using (StreamReader readStream = new StreamReader(Request.Body, Encoding.UTF8))
             {
                 var body = await readStream.ReadToEndAsync();
+
+                if (!Authenticate(Request, body)) return;
+
                 try
                 {
                     var wbhookData = JsonConvert.DeserializeObject<Webhook.WebhookData>(body);
@@ -177,6 +206,9 @@ namespace LivePersonConnector.Controllers
             using (StreamReader readStream = new StreamReader(Request.Body, Encoding.UTF8))
             {
                 var body = await readStream.ReadToEndAsync();
+
+                if (!Authenticate(Request, body)) return;
+
                 try
                 {
                     var wbhookData = JsonConvert.DeserializeObject<ExConversationChangeNotification.WebhookData>(body);

@@ -11,6 +11,14 @@ using Newtonsoft.Json;
 
 namespace LivePersonConnector
 {
+    public interface ICredentialsProvider
+    {
+        string Account { get; }
+        string LpAppId { get; }
+        string LpAppSecret { get; }
+        string MsAppId { get; }
+    }
+
     class LivePersonConversationRecord
     {
         public string ConversationId;
@@ -69,7 +77,7 @@ namespace LivePersonConnector
             conversationMap.ConversationRecords.TryAdd(conversationId, new ConversationRecord { ConversationReference = turnContext.Activity.GetConversationReference() });
 
             var messageId = 1;
-#if true
+
             // First, play out the transcript
             var handoffActivity = handoffEvent as Activity;
             if (handoffActivity.Attachments != null)
@@ -89,9 +97,6 @@ namespace LivePersonConnector
                     }
                 }
             }
-#endif
-//            var message = MakeLivePersonMessage(messageId++, conversationId, turnContext.Activity.Text);
-//            await SendMessageToConversation(account, msgDomain, appJWT, consumerJWS, conversationId, message);
 
             return new LivePersonConversationRecord { ConversationId = conversationId, AppJWT = appJWT, ConsumerJWS = consumerJWS, MsgDomain = msgDomain };
         }

@@ -48,6 +48,8 @@ namespace LPProxyBot
             // Create the bot as a transient. In this case the ASP Controller is expecting an IBot.
             services.AddTransient<IBot, Bots.LPProxyBot>();
 
+            services.AddTransient<LivePersonConnector.ICredentialsProvider, LPCredentialsProvider>();
+
             services.AddSingleton<LivePersonConnector.HandoffMiddleware>();
 
             services.AddSingleton<LoggingMiddleware>();
