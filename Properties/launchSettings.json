@@ -10,11 +10,10 @@
   "profiles": {
     "EchoBot": {
       "commandName": "Project",
-      "launchBrowser": true,
-      "applicationUrl": "http://localhost:3978",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
-      }
+      },
+      "applicationUrl": "http://localhost:3978"
     }
   }
 }

@@ -2,24 +2,20 @@
 // Licensed under the MIT License.
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
-using Microsoft.Bot.Connector;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
-using Microsoft.VisualStudio.Web.CodeGeneration.Contracts.Messaging;
-using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace LPProxyBot.Bots
 {
     public class LPProxyBot : ActivityHandler
     {
         private readonly BotState _conversationState;
-        private readonly IConfiguration _configuration;
         private readonly string _appId;
 
         public LPProxyBot(ConversationState conversationState, IConfiguration configuration)
@@ -89,10 +85,11 @@ namespace LPProxyBot.Bots
                 var conversationStateAccessors = _conversationState.CreateProperty<ConversationData>(nameof(ConversationData));
                 var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new ConversationData());
 
-                var status = JsonConvert.DeserializeObject<LivePersonHandoffStatus>(turnContext.Activity.Value.ToString());
                 string text;
-                if(status.state == "accepted")
+                var state = (turnContext.Activity.Value as JObject)?.Value<string>("state");
+                if (state == "accepted")
                 {
+                    // TODO: race condition here. move this to middleware
                     if(conversationData.Acked)
                     {
                         // already acked, get out
@@ -102,13 +99,13 @@ namespace LPProxyBot.Bots
                     conversationData.Acked = true;
                     await _conversationState.SaveChangesAsync(turnContext);
                 }
-                else if (status.state == "completed")
+                else if (state == "completed")
                 {
                     text = "The agent has closed the conversation.";
                 }
                 else
                 {
-                    text = $"Conversation status changed to '{status.state}'";
+                    text = $"Conversation status changed to '{state}'";
                 }
 
                 // Can only respond as a proactive message, not directly on turnContext
@@ -124,12 +121,5 @@ namespace LPProxyBot.Bots
 
             await base.OnEventAsync(turnContext, cancellationToken);
         }
-    }
-
-    // TODO: move this
-    class LivePersonHandoffStatus
-    {
-        public string state;
-        public string message;
     }
 }

@@ -1,19 +1,16 @@
-﻿using System;
-using Microsoft.Bot.Builder;
+﻿using System.Collections.Concurrent;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using LPProxyBot.Bots;
+using Microsoft.Bot.Builder;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
-using System.Linq;
-using LPProxyBot.Bots;
-using System.Net.Http;
-using Newtonsoft.Json;
-using System.Text;
-using System.Collections.Concurrent;
+using Newtonsoft.Json.Linq;
 
 namespace LPProxyBot
 {
-    public class HandoffMiddleware : Microsoft.Bot.Builder.IMiddleware
+    public class HandoffMiddleware : IMiddleware
     {
         IConfiguration _configuration;
         private BotState _conversationState;
@@ -50,8 +47,8 @@ namespace LPProxyBot
             {
                 try
                 {
-                    var status = JsonConvert.DeserializeObject<LivePersonHandoffStatus>(turnContext.Activity.Value.ToString());
-                    if(status.state == "completed")
+                    var state = (turnContext.Activity.Value as JObject)?.Value<string>("state");
+                    if (state == "completed")
                     {
                         conversationData.EscalationRecord = null;
                         await _conversationState.SaveChangesAsync(turnContext);
