@@ -12,7 +12,6 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
-using Microsoft.Bot.Connector;
 using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Schema;
 using Newtonsoft.Json;
@@ -137,7 +136,20 @@ namespace LivePersonConnector.Controllers
 
                 try
                 {
-                    var wbhookData = JsonConvert.DeserializeObject<Webhook.WebhookData>(body);
+                    var wbhookData = JsonConvert.DeserializeObject<ChatStateEvent.WebhookData>(body);
+                    foreach (var change in wbhookData.body.changes)
+                    {
+                        if (change?.@event?.chatState == "COMPOSING")
+                        {
+                            var convId = change.conversationId;
+                            ConversationRecord conversationRec;
+                            if (_conversationMap.ConversationRecords.TryGetValue(convId, out conversationRec))
+                            {
+                                var evnt = EventFactory.CreateHandoffStatus(conversationRec.ConversationReference.Conversation, "typing") as Activity;
+                                await _adapter.ProcessActivityAsync(evnt, _creds.MsAppId, conversationRec.ConversationReference, _bot.OnTurnAsync, default(CancellationToken));
+                            }
+                        }
+                    }
                 }
                 catch { }
             }
@@ -230,6 +242,7 @@ namespace LivePersonConnector.Controllers
                         switch (state)
                         {
                             case "CLOSE":
+                            {
                                 // Agent has closed the conversation
                                 var convId = change?.result?.convId;
                                 ConversationRecord conversationRec;
@@ -242,7 +255,8 @@ namespace LivePersonConnector.Controllers
                                     // Records are not removed from the dictionary since agents can reopen conversations
                                     conversationRec.IsClosed = true;
                                 }
-                                break;
+                            }
+                            break;
                             case "OPEN":
                                 break;
                         }

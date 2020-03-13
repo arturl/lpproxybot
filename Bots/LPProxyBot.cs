@@ -58,9 +58,9 @@ namespace LPProxyBot.Bots
                 {
                     replyText = "Hello!";
                 }
-                else if(userText == "info")
+                else if (userText == "info")
                 {
-                    replyText = $"Version 1.0. AppId: {_creds.LpAppId}";
+                    replyText = $"Version 1.1. AppId: {_creds.LpAppId}";
                 }
                 else
                 {
@@ -84,23 +84,31 @@ namespace LPProxyBot.Bots
                 var conversationStateAccessors = _conversationState.CreateProperty<LoggingConversationData>(nameof(LoggingConversationData));
                 var conversationData = await conversationStateAccessors.GetAsync(turnContext, () => new LoggingConversationData());
 
-                string text;
+                Activity replyActivity;
                 var state = (turnContext.Activity.Value as JObject)?.Value<string>("state");
-                if (state == "accepted")
+                if (state == "typing")
                 {
-                    text = "An agent has accepted the conversation and will respond shortly.";
+                    replyActivity = new Activity
+                    {
+                        Type = ActivityTypes.Typing,
+                        Text = "agent is typing",
+                    };
+                }
+                else if (state == "accepted")
+                {
+                    replyActivity = MessageFactory.Text("An agent has accepted the conversation and will respond shortly.");
                     await _conversationState.SaveChangesAsync(turnContext);
                 }
                 else if (state == "completed")
                 {
-                    text = "The agent has closed the conversation.";
+                    replyActivity = MessageFactory.Text("The agent has closed the conversation.");
                 }
                 else
                 {
-                    text = $"Conversation status changed to '{state}'";
+                    replyActivity = MessageFactory.Text($"Conversation status changed to '{state}'");
                 }
 
-                await turnContext.SendActivityAsync(MessageFactory.Text(text));
+                await turnContext.SendActivityAsync(replyActivity);
             }
 
             await base.OnEventAsync(turnContext, cancellationToken);
