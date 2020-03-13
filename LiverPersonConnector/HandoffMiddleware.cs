@@ -39,7 +39,6 @@ namespace LivePersonConnector
                     conversationData.EscalationRecord.MsgDomain,
                     conversationData.EscalationRecord.AppJWT,
                     conversationData.EscalationRecord.ConsumerJWS,
-                    conversationData.EscalationRecord.ConversationId,
                     message);
                 return;
             }

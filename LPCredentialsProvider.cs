@@ -12,8 +12,13 @@ namespace LPProxyBot
         public LPCredentialsProvider(IConfiguration configuration)
         {
             LpAccount = configuration["LivePersonAccount"];
+#if RELEASE
+            LpAppId = configuration["LivePersonClientId_Release"];
+            LpAppSecret = configuration["LivePersonClientSecret_Release"];
+#else
             LpAppId = configuration["LivePersonClientId"];
             LpAppSecret = configuration["LivePersonClientSecret"];
+#endif
             MsAppId = configuration["MicrosoftAppId"];
 
             // If the channel is the Emulator, and authentication is not in use,

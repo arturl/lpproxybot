@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Schema;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 namespace LivePersonConnector
 {
@@ -39,9 +40,9 @@ namespace LivePersonConnector
 
             var idpDomain = await GetDomain(account, "idp");
             var consumerJWS = await GetConsumerJWS(account, idpDomain, appJWT, consumer);
-            
+
             // This can be null:
-            var skill = handoffEvent.Value.GetType().GetProperty("Skill")?.GetValue(handoffEvent.Value, null) as string;
+            var skill = (handoffEvent.Value as JObject)?.Value<string>("Skill");
 
             var msgDomain = await GetDomain(account, "asyncMessagingEnt");
             var conversations = new Conversation[] {
@@ -92,7 +93,7 @@ namespace LivePersonConnector
                             var message2 = MakeLivePersonMessage(messageId++,
                                 conversationId,
                                 $"{activity.From.Name}: {activity.Text}");
-                            await SendMessageToConversation(account, msgDomain, appJWT, consumerJWS, conversationId, message2);
+                            await SendMessageToConversation(account, msgDomain, appJWT, consumerJWS, message2);
                         }
                     }
                 }
@@ -146,10 +147,12 @@ namespace LivePersonConnector
                 var stringPayload = "";
                 var httpContent = new StringContent(stringPayload, Encoding.UTF8, "application/x-www-form-urlencoded");
 
-                var request = new HttpRequestMessage();
-                request.Method = HttpMethod.Post;
-                request.Content = httpContent;
-                request.RequestUri = new Uri($"https://{domain}/sentinel/api/account/{account}/app/token?v=1.0&grant_type=client_credentials&client_id={clientId}&client_secret={clientSecret}");
+                var request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Post,
+                    Content = httpContent,
+                    RequestUri = new Uri($"https://{domain}/sentinel/api/account/{account}/app/token?v=1.0&grant_type=client_credentials&client_id={clientId}&client_secret={clientSecret}")
+                };
 
                 var response = await client.SendAsync(request);
 
@@ -173,9 +176,11 @@ namespace LivePersonConnector
                 var stringPayload = JsonConvert.SerializeObject(consumer);
                 var httpContent = new StringContent(stringPayload, Encoding.UTF8, "application/json");
 
-                var request = new HttpRequestMessage();
-                request.Method = HttpMethod.Post;
-                request.Content = httpContent;
+                var request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Post,
+                    Content = httpContent
+                };
                 request.Headers.Add("Authorization", authToken);
                 request.RequestUri = new Uri($"https://{domain}/api/account/{account}/consumer?v=1.0");
 
@@ -204,9 +209,11 @@ namespace LivePersonConnector
                 });
                 var httpContent = new StringContent(stringPayload, Encoding.UTF8, "application/json");
 
-                var request = new HttpRequestMessage();
-                request.Method = HttpMethod.Post;
-                request.Content = httpContent;
+                var request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Post,
+                    Content = httpContent
+                };
                 request.Headers.Add("Authorization", appJWT);
                 request.Headers.Add("X-LP-ON-BEHALF", consumerJWS);
                 request.RequestUri = new Uri($"https://{domain}/api/account/{account}/messaging/consumer/conversation?v=3");
@@ -235,7 +242,7 @@ namespace LivePersonConnector
             }
         }
 
-        static public async Task<int> SendMessageToConversation(string account, string domain, string appJWT, string consumerJWS, string conversationId, Message message)
+        static public async Task<int> SendMessageToConversation(string account, string domain, string appJWT, string consumerJWS, Message message)
         {
             using (var client = new HttpClient())
             {
@@ -245,9 +252,11 @@ namespace LivePersonConnector
                 });
                 var httpContent = new StringContent(stringPayload, Encoding.UTF8, "application/json");
 
-                var request = new HttpRequestMessage();
-                request.Method = HttpMethod.Post;
-                request.Content = httpContent;
+                var request = new HttpRequestMessage
+                {
+                    Method = HttpMethod.Post,
+                    Content = httpContent
+                };
                 request.Headers.Add("Authorization", appJWT);
                 request.Headers.Add("X-LP-ON-BEHALF", consumerJWS);
                 request.RequestUri = new Uri($"https://{domain}/api/account/{account}/messaging/consumer/conversation/send?v=3");

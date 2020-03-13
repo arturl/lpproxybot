@@ -6,7 +6,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using LivePersonConnector;
 using Microsoft.Bot.Builder;
+using Microsoft.Bot.Connector;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json.Linq;
@@ -16,12 +18,12 @@ namespace LPProxyBot.Bots
     public class LPProxyBot : ActivityHandler
     {
         private readonly BotState _conversationState;
-        private readonly string _appId;
+        private readonly ICredentialsProvider _creds;
 
-        public LPProxyBot(ConversationState conversationState, IConfiguration configuration)
+        public LPProxyBot(ConversationState conversationState, ICredentialsProvider creds)
         {
             _conversationState = conversationState;
-            _appId = configuration["MicrosoftAppId"];
+            _creds = creds;
         }
 
         static Dictionary<string, string> Capitals = new Dictionary<string, string>
@@ -55,6 +57,10 @@ namespace LPProxyBot.Bots
                 if (userText == "hi")
                 {
                     replyText = "Hello!";
+                }
+                else if(userText == "info")
+                {
+                    replyText = $"Version 1.0. AppId: {_creds.LpAppId}";
                 }
                 else
                 {
@@ -94,15 +100,7 @@ namespace LPProxyBot.Bots
                     text = $"Conversation status changed to '{state}'";
                 }
 
-                // Can only respond as a proactive message, not directly on turnContext
-
-                var conversationRef = turnContext.Activity.GetConversationReference();
-                await turnContext.Adapter.ContinueConversationAsync(
-                    _appId,
-                    conversationRef,
-                    (ITurnContext turnContext, CancellationToken cancellationToken) =>
-                        turnContext.SendActivityAsync(MessageFactory.Text(text), cancellationToken),
-                    default(CancellationToken));
+                await turnContext.SendActivityAsync(MessageFactory.Text(text));
             }
 
             await base.OnEventAsync(turnContext, cancellationToken);

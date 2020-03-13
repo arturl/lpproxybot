@@ -3,6 +3,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -11,9 +12,9 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
+using Microsoft.Bot.Connector;
 using Microsoft.Bot.Connector.Authentication;
 using Microsoft.Bot.Schema;
-using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 
 namespace LivePersonConnector.Controllers
@@ -43,7 +44,7 @@ namespace LivePersonConnector.Controllers
             {
                 var hash = hmac.ComputeHash(Encoding.ASCII.GetBytes(body));
                 var signature = $"sha1={Convert.ToBase64String(hash)}";
-                if(signature != request.Headers["X-Liveperson-Signature"])
+                if (signature != request.Headers["X-Liveperson-Signature"])
                 {
                     Response.StatusCode = 401;
                     return false;
@@ -55,13 +56,24 @@ namespace LivePersonConnector.Controllers
             var account = request.Headers["X-Liveperson-Account-Id"];
             var clientId = request.Headers["X-Liveperson-Client-Id"];
 
-            if(account == _creds.LpAccount && clientId == _creds.LpAppId)
+            if (account == _creds.LpAccount && clientId == _creds.LpAppId)
             {
                 return true;
             }
 
             return false;
         }
+
+#if DEBUG
+        [HttpPost]
+        [Route("test")]
+        public async Task PostTest()
+        {
+            ConversationRecord conversationRec = _conversationMap.ConversationRecords.Values.First();
+            var evnt = EventFactory.CreateHandoffStatus(conversationRec.ConversationReference.Conversation, "test") as Activity;
+            await _adapter.ProcessActivityAsync(evnt, _creds.MsAppId, conversationRec.ConversationReference, _bot.OnTurnAsync, default(CancellationToken));
+        }
+#endif
 
         [HttpPost]
         [Route("AcceptStatusEvent")]
@@ -78,14 +90,14 @@ namespace LivePersonConnector.Controllers
                     var wbhookData = JsonConvert.DeserializeObject<AcceptStatusEvent.WebhookData>(body);
                     foreach (var change in wbhookData.body.changes)
                     {
-                        if(change?.originatorMetadata?.role == "ASSIGNED_AGENT")
+                        if (change?.originatorMetadata?.role == "ASSIGNED_AGENT")
                         {
                             // Agent has accepted the conversation
                             var convId = change?.conversationId;
                             ConversationRecord conversationRec;
                             if (_conversationMap.ConversationRecords.TryGetValue(convId, out conversationRec))
                             {
-                                if(conversationRec.IsAcked || conversationRec.IsClosed)
+                                if (conversationRec.IsAcked || conversationRec.IsClosed)
                                 {
                                     // Already acked this one
                                     break;
@@ -102,8 +114,7 @@ namespace LivePersonConnector.Controllers
                                 if (_conversationMap.ConversationRecords.TryUpdate(convId, newConversationRec, conversationRec))
                                 {
                                     var evnt = EventFactory.CreateHandoffStatus(newConversationRec.ConversationReference.Conversation, "accepted") as Activity;
-                                    evnt.ApplyConversationReference(newConversationRec.ConversationReference, true);
-                                    await _adapter.ProcessActivityAsync(evnt, _bot.OnTurnAsync, default(CancellationToken));
+                                    await _adapter.ProcessActivityAsync(evnt, _creds.MsAppId, newConversationRec.ConversationReference, _bot.OnTurnAsync, default(CancellationToken));
                                 }
                             }
                         }
@@ -216,7 +227,7 @@ namespace LivePersonConnector.Controllers
                     foreach (var change in wbhookData.body.changes)
                     {
                         string state = change?.result?.conversationDetails?.state;
-                        switch(state)
+                        switch (state)
                         {
                             case "CLOSE":
                                 // Agent has closed the conversation
@@ -225,8 +236,7 @@ namespace LivePersonConnector.Controllers
                                 if (_conversationMap.ConversationRecords.TryGetValue(convId, out conversationRec))
                                 {
                                     var evnt = EventFactory.CreateHandoffStatus(conversationRec.ConversationReference.Conversation, "completed") as Activity;
-                                    evnt.ApplyConversationReference(conversationRec.ConversationReference, true);
-                                    await _adapter.ProcessActivityAsync(evnt, _bot.OnTurnAsync, default(CancellationToken));
+                                    await _adapter.ProcessActivityAsync(evnt, _creds.MsAppId, conversationRec.ConversationReference, _bot.OnTurnAsync, default(CancellationToken));
 
                                     // Close event happens only once, so don't worry about race conditions here
                                     // Records are not removed from the dictionary since agents can reopen conversations

@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Microsoft.Bot.Builder;
 using Microsoft.Bot.Builder.Integration.AspNet.Core;
 using Microsoft.Bot.Builder.TraceExtensions;
+using Microsoft.Bot.Connector;
 using Microsoft.Bot.Schema;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -33,14 +34,24 @@ namespace LivePersonConnector
             };
         }
 
-        public async Task ProcessActivityAsync(Activity activity, BotCallbackHandler callback, CancellationToken cancellationToken)
+        public async Task ProcessActivityAsync(Activity activity, string msAppId, ConversationReference conversationRef, BotCallbackHandler callback, CancellationToken cancellationToken)
         {
             BotAssert.ActivityNotNull(activity);
 
-            using (var context = new TurnContext(this, activity))
-            {
-                await base.RunPipelineAsync(context, callback, cancellationToken).ConfigureAwait(false);
-            }
+            activity.ApplyConversationReference(conversationRef, true);
+
+            await this.ContinueConversationAsync(
+                msAppId,
+                conversationRef,
+                (ITurnContext proactiveContext, CancellationToken ct) =>
+                {
+                    using (var contextWithActivity = new TurnContext(this, activity))
+                    {
+                        contextWithActivity.TurnState.Add(proactiveContext.TurnState.Get<IConnectorClient>());
+                        return base.RunPipelineAsync(contextWithActivity, callback, cancellationToken);
+                    }
+                },
+                cancellationToken);
         }
     }
 }

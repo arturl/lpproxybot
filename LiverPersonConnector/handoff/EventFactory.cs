@@ -69,18 +69,8 @@ namespace Microsoft.Bot.Builder
                 throw new ArgumentNullException(nameof(state));
             }
 
-            object value = JObject.FromObject(new { state, message });
-/*
-            if (string.IsNullOrEmpty(message))
-            {
-                //value = new { state };
-                value = $"{{ \"state\" : \"{state}\" }}";
-            }
-            else
-            {
-                value = $"{{ \"state\" : \"{state}\", \"message\" : \"{message}\" }}";
-            }
-*/
+            object value = new { state, message };
+
             var handoffEvent = CreateHandoffEvent(HandoffEventNames.HandoffStatus, value, conversation);
             return handoffEvent;
         }
@@ -90,7 +80,7 @@ namespace Microsoft.Bot.Builder
             var handoffEvent = Activity.CreateEventActivity() as Activity;
 
             handoffEvent.Name = name;
-            handoffEvent.Value = value;
+            handoffEvent.Value = JObject.FromObject(value);
             handoffEvent.Id = Guid.NewGuid().ToString();
             handoffEvent.Timestamp = DateTime.UtcNow;
             handoffEvent.Conversation = conversation;
