@@ -1,3 +1,9 @@
+# Note
+
+The sample has migrated to the Bot Builder Samples repo:
+
+https://github.com/microsoft/BotBuilder-Samples/tree/master/experimental/handoff-library
+
 # LivePerson Proxy Bot
 
 This sample demonstrates how to connect any Bot Framework channel to the LivePerson agent hub. The bot uses the new Bot Framework Handoff APIs.
